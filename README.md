@@ -1,16 +1,34 @@
-## Hi there 👋
+# Threeebs :3
 
-<!--
-**threeebs/threeebs** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+> Plataforma em construção para quem cria na web.
 
-Here are some ideas to get you started:
+Este é o repositório público oficial do **Threeebs :3**, nome técnico **3eb.site**.
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+## Estado atual
+
+O projeto está em fase **PoC / Alpha**. A fundação está sendo organizada antes da primeira versão executável pública.
+
+Neste momento, este repositório serve para:
+
+- apresentar o projeto;
+- publicar documentação aprovada;
+- receber feedback da comunidade;
+- distribuir releases públicas quando estiverem prontas.
+
+## Releases
+
+Somente versões publicadas na área de Releases devem ser consideradas distribuições oficiais. Durante a Alpha, mudanças incompatíveis ainda podem acontecer.
+
+## Contribuição
+
+Leia [CONTRIBUTING.md](CONTRIBUTING.md) antes de abrir uma Issue ou Pull Request.
+
+Problemas de segurança devem seguir as orientações de [SECURITY.md](SECURITY.md) e não devem ser publicados em Issues comuns.
+
+## Histórico
+
+As mudanças públicas serão registradas em [CHANGELOG.md](CHANGELOG.md).
+
+## Licença
+
+A licença do código e da documentação ainda será definida. Nenhuma versão executável será publicada antes dessa decisão.
