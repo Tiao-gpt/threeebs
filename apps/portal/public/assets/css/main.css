@@ -1,0 +1,71 @@
+.portal-header {
+  margin-bottom: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at top right, rgb(91 227 193 / 12%), transparent 42%),
+    var(--surface);
+}
+
+.portal-header h1 {
+  margin: 0.15rem 0 0;
+}
+
+.app-kicker {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+nav a,
+body > p > a {
+  display: inline-block;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  text-decoration: none;
+}
+
+nav a:hover,
+body > p > a:hover {
+  border-color: var(--accent);
+  background: var(--surface-soft);
+}
+
+body > h3 {
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border);
+}
+
+body > ul {
+  padding: 0.9rem 1rem 0.9rem 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+body > p > strong {
+  display: inline-block;
+  padding: 0.65rem 0.85rem;
+  border-left: 0.25rem solid var(--accent);
+  background: var(--surface-soft);
+}
+
+.portal-app > hr:last-of-type + form {
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
