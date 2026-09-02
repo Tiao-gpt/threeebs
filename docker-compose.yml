@@ -1,0 +1,206 @@
+name: threeebs-${PROJECT_SLUG}
+
+x-php-environment: &php-environment
+  TZ: ${TZ}
+  APP_ENV: ${APP_ENV}
+  APP_DEBUG: ${APP_DEBUG}
+  LOGIN_MAX_ATTEMPTS: ${LOGIN_MAX_ATTEMPTS:-5}
+  LOGIN_WINDOW_SECONDS: ${LOGIN_WINDOW_SECONDS:-600}
+  LOGIN_LOCK_SECONDS: ${LOGIN_LOCK_SECONDS:-900}
+  LOGIN_IP_MAX_ATTEMPTS: ${LOGIN_IP_MAX_ATTEMPTS:-25}
+  TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
+  BASE_DOMAIN: ${BASE_DOMAIN}
+  PUBLIC_ROUTE_SCHEME: ${PUBLIC_ROUTE_SCHEME:-}
+  MYSQL_HOST: mysql
+  MYSQL_PORT: 3306
+  IDENTITY_DB_NAME: threeebs_identity
+  CONTROL_DB_NAME: threeebs_control
+  WORK_DB_NAME: threeebs_work
+  CATALOG_DB_NAME: threeebs_catalog
+  FINANCE_DB_NAME: threeebs_finance
+  AUDIT_DB_NAME: threeebs_audit
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+x-php-service: &php-service
+  build:
+    context: .
+    dockerfile: infrastructure/apache/Dockerfile
+  restart: unless-stopped
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks:
+    - threeebs
+
+services:
+  portal:
+    <<: *php-service
+    container_name: threeebs-${PROJECT_SLUG}-portal
+    ports:
+      - "${BIND_ADDRESS}:${PORTAL_PORT}:80"
+    environment:
+      <<: *php-environment
+      APP_CONTEXT: portal
+      APP_NAME: Threeebs Portal
+      APP_URL: ${PORTAL_URL}
+      SANDBOX_URL: ${SANDBOX_URL}
+      DB_USER: ${THREEEBS_PORTAL_DB_USER}
+      DB_PASSWORD: ${THREEEBS_PORTAL_DB_PASSWORD}
+    volumes:
+      - ./apps/portal:/var/www/app:ro
+      - ./apps/shared:/var/www/shared:ro
+      - ./storage/logs/portal:/var/log/apache2
+      - ./infrastructure/apache/portal-vhost.conf:/etc/apache2/sites-enabled/000-default.conf:ro
+
+  admin:
+    <<: *php-service
+    container_name: threeebs-${PROJECT_SLUG}-admin
+    ports:
+      - "${BIND_ADDRESS}:${ADMIN_PORT}:80"
+    environment:
+      <<: *php-environment
+      APP_CONTEXT: admin
+      APP_NAME: Threeebs Admin
+      APP_URL: ${ADMIN_URL}
+      SANDBOX_URL: ${SANDBOX_URL}
+      THREEEBS_SETUP_KEY: ${THREEEBS_SETUP_KEY}
+      THREEEBS_PREPARE_PROJECTS: "true"
+      DB_USER: ${THREEEBS_ADMIN_DB_USER}
+      DB_PASSWORD: ${THREEEBS_ADMIN_DB_PASSWORD}
+    volumes:
+      - ./apps/admin:/var/www/app:ro
+      - ./apps/shared:/var/www/shared:ro
+      - ./storage/projects:/var/www/projects
+      - ./storage/logs/admin:/var/log/apache2
+      - ./infrastructure/apache/admin-vhost.conf:/etc/apache2/sites-enabled/000-default.conf:ro
+
+  sandbox:
+    <<: *php-service
+    container_name: threeebs-${PROJECT_SLUG}-sandbox
+    ports:
+      - "${BIND_ADDRESS}:${SANDBOX_PORT}:80"
+    environment:
+      <<: *php-environment
+      APP_CONTEXT: sandbox
+      APP_NAME: Threeebs Sandbox
+      APP_URL: ${SANDBOX_URL}
+      THREEEBS_PREPARE_PROJECTS: "true"
+      DB_USER: ${THREEEBS_SANDBOX_DB_USER}
+      DB_PASSWORD: ${THREEEBS_SANDBOX_DB_PASSWORD}
+    volumes:
+      - ./apps/sandbox:/var/www/app:ro
+      - ./apps/shared:/var/www/shared:ro
+      - ./storage/projects:/var/www/projects
+      - ./storage/logs/sandbox:/var/log/apache2
+      - ./infrastructure/apache/sandbox-vhost.conf:/etc/apache2/sites-enabled/000-default.conf:ro
+
+  host:
+    <<: *php-service
+    container_name: threeebs-${PROJECT_SLUG}-host
+    ports:
+      - "${BIND_ADDRESS}:${HOST_PORT}:80"
+    environment:
+      <<: *php-environment
+      APP_CONTEXT: host
+      APP_NAME: Threeebs Host
+      APP_URL: ${HOST_URL}
+      DB_USER: ${THREEEBS_HOST_DB_USER}
+      DB_PASSWORD: ${THREEEBS_HOST_DB_PASSWORD}
+    volumes:
+      - ./apps/host:/var/www/app:ro
+      - ./storage/projects:/var/www/projects:ro
+      - ./storage/logs/host:/var/log/apache2
+      - ./infrastructure/apache/host-vhost.conf:/etc/apache2/sites-enabled/000-default.conf:ro
+
+  mysql:
+    image: mysql:8.4
+    container_name: threeebs-${PROJECT_SLUG}-mysql
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDRESS}:${MYSQL_PORT}:3306"
+    environment:
+      TZ: ${TZ}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      THREEEBS_ADMIN_DB_USER: ${THREEEBS_ADMIN_DB_USER}
+      THREEEBS_ADMIN_DB_PASSWORD: ${THREEEBS_ADMIN_DB_PASSWORD}
+      THREEEBS_PORTAL_DB_USER: ${THREEEBS_PORTAL_DB_USER}
+      THREEEBS_PORTAL_DB_PASSWORD: ${THREEEBS_PORTAL_DB_PASSWORD}
+      THREEEBS_SANDBOX_DB_USER: ${THREEEBS_SANDBOX_DB_USER}
+      THREEEBS_SANDBOX_DB_PASSWORD: ${THREEEBS_SANDBOX_DB_PASSWORD}
+      THREEEBS_HOST_DB_USER: ${THREEEBS_HOST_DB_USER}
+      THREEEBS_HOST_DB_PASSWORD: ${THREEEBS_HOST_DB_PASSWORD}
+      THREEEBS_MIGRATOR_DB_USER: ${THREEEBS_MIGRATOR_DB_USER}
+      THREEEBS_MIGRATOR_DB_PASSWORD: ${THREEEBS_MIGRATOR_DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./infrastructure/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./database:/opt/threeebs/database:ro
+    healthcheck:
+      test: [CMD-SHELL, 'test -f /var/lib/mysql/.threeebs_initialized && MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysqladmin ping -h localhost -uroot --silent && MYSQL_PWD="$$THREEEBS_ADMIN_DB_PASSWORD" mysql --protocol=tcp -h127.0.0.1 -u"$$THREEEBS_ADMIN_DB_USER" -Nse "SELECT 1 FROM threeebs_control.configuracao_instalacao LIMIT 1" >/dev/null && MYSQL_PWD="$$THREEEBS_PORTAL_DB_PASSWORD" mysql --protocol=tcp -h127.0.0.1 -u"$$THREEEBS_PORTAL_DB_USER" -Nse "SELECT 1 FROM threeebs_control.projetos LIMIT 1" >/dev/null && MYSQL_PWD="$$THREEEBS_SANDBOX_DB_PASSWORD" mysql --protocol=tcp -h127.0.0.1 -u"$$THREEEBS_SANDBOX_DB_USER" -Nse "SELECT 1 FROM threeebs_control.projetos LIMIT 1" >/dev/null && MYSQL_PWD="$$THREEEBS_HOST_DB_PASSWORD" mysql --protocol=tcp -h127.0.0.1 -u"$$THREEEBS_HOST_DB_USER" -Nse "SELECT 1 FROM threeebs_control.rotas_web LIMIT 1" >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    networks: [threeebs]
+
+  redis:
+    image: redis:8-alpine
+    container_name: threeebs-${PROJECT_SLUG}-redis
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDRESS}:${REDIS_PORT}:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    command: [redis-server, --appendonly, "yes", --requirepass, "${REDIS_PASSWORD}"]
+    healthcheck:
+      test: [CMD-SHELL, 'redis-cli -a "$$REDIS_PASSWORD" ping | grep PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [threeebs]
+
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    container_name: threeebs-${PROJECT_SLUG}-phpmyadmin
+    restart: unless-stopped
+    profiles: [tools]
+    ports:
+      - "${BIND_ADDRESS}:${PHPMYADMIN_PORT}:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: ${PHPMYADMIN_UPLOAD_LIMIT}
+      TZ: ${TZ}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks: [threeebs]
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: threeebs-${PROJECT_SLUG}-cloudflared
+    restart: unless-stopped
+    profiles: [tunnel]
+    command: [tunnel, --no-autoupdate, --config, /etc/cloudflared/config.yml, run]
+    volumes:
+      - ./infrastructure/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ./infrastructure/cloudflared/credentials:/etc/cloudflared/credentials:ro
+    depends_on: [portal, admin, sandbox, host]
+    networks: [threeebs]
+
+volumes:
+  mysql_data:
+    name: threeebs-${PROJECT_SLUG}-mysql-data
+  redis_data:
+    name: threeebs-${PROJECT_SLUG}-redis-data
+
+networks:
+  threeebs:
+    name: threeebs-${PROJECT_SLUG}-network
+    driver: bridge
