@@ -3,25 +3,66 @@
 declare(strict_types=1);
 
 require '/var/www/shared/bootstrap.php';
+require '/var/www/shared/ui.php';
 
 $path = request_path();
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
+function admin_navigation(): array
+{
+    return [
+        ['href' => '/', 'label' => 'Visão geral', 'icon' => 'home'],
+        ['href' => '/usuarios', 'label' => 'Usuários', 'icon' => 'users'],
+        ['href' => '/clientes', 'label' => 'Clientes', 'icon' => 'clients'],
+        ['href' => '/projetos', 'label' => 'Projetos', 'icon' => 'projects'],
+        ['href' => '/jornadas', 'label' => 'Jornadas', 'icon' => 'journey'],
+        ['href' => '/tarefas', 'label' => 'Tarefas', 'icon' => 'tasks'],
+        ['href' => '/servidores', 'label' => 'Servidores', 'icon' => 'server'],
+    ];
+}
+
 function admin_page_start(string $title): void
 {
-    echo '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
-        . '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        . '<title>' . h($title) . '</title>'
-        . '<link rel="stylesheet" href="/assets/css/base.css">'
-        . '<link rel="stylesheet" href="/assets/css/main.css">'
-        . '</head><body class="admin-app">'
-        . '<header class="admin-header"><p class="app-kicker">Threeebs :3 / Admin</p>'
-        . '<h1>' . h($title) . '</h1></header>';
+    global $path;
+    if (auth_user()) {
+        $GLOBALS['admin_ui_mode'] = 'app';
+        ui_app_start($title, 'Admin', admin_navigation(), $path, auth_user());
+        return;
+    }
+    $GLOBALS['admin_ui_mode'] = 'public';
+    ui_public_start($title, 'Admin', 'admin-auth');
+}
+
+function admin_page_end(): void
+{
+    if (($GLOBALS['admin_ui_mode'] ?? 'public') === 'app') {
+        ui_app_end();
+        return;
+    }
+    ui_public_end();
 }
 
 function admin_nav(): void
 {
-    echo '<nav><a href="/">Início</a> | <a href="/usuarios">Usuários</a> | <a href="/clientes">Clientes</a> | <a href="/projetos">Projetos</a> | <a href="/jornadas">Jornadas</a> | <a href="/tarefas">Tarefas</a> | <a href="/servidores">Servidores</a></nav><hr>';
+    // A navegação agora é renderizada pelo shell compartilhado.
+}
+
+function admin_role_select(string $name, array $roles, string $selected = 'membro'): void
+{
+    echo '<p><label>Papel<br><select name="' . h($name) . '" required>';
+    foreach ($roles as $value => $label) {
+        echo '<option value="' . h($value) . '"' . ($value === $selected ? ' selected' : '') . '>'
+            . h($label) . '</option>';
+    }
+    echo '</select></label></p>';
+}
+
+function admin_allowed_role(string $role, array $roles): string
+{
+    if (!array_key_exists($role, $roles)) {
+        throw new ValidationException('Selecione um papel válido.');
+    }
+    return $role;
 }
 
 function input(string $name, string $label, string $type = 'text', string $value = '', bool $required = true): void
@@ -285,7 +326,8 @@ if ($method === 'POST') {
                     papel=VALUES(papel),ativo=VALUES(ativo),
                     concedido_por_usuario_uuid=VALUES(concedido_por_usuario_uuid)"
             );
-            $clientRole = trim((string) ($_POST['papel'] ?? '')) ?: 'membro';
+            $clientRoles = ['proprietario' => 'Proprietário', 'gestor' => 'Gestor', 'membro' => 'Membro'];
+            $clientRole = admin_allowed_role(trim((string) ($_POST['papel'] ?? '')), $clientRoles);
             $clientUserActive = isset($_POST['ativo']) ? 1 : 0;
             $stmt->execute([
                 'client' => $clientId,
@@ -356,7 +398,14 @@ if ($method === 'POST') {
                     papel=VALUES(papel),ativo=VALUES(ativo),
                     concedido_por_usuario_uuid=VALUES(concedido_por_usuario_uuid)"
             );
-            $projectRole = trim((string) ($_POST['papel'] ?? '')) ?: 'membro';
+            $projectRoles = [
+                'gestor' => 'Gestor',
+                'desenvolvedor' => 'Desenvolvedor',
+                'colaborador' => 'Colaborador',
+                'membro' => 'Membro',
+                'visualizador' => 'Visualizador',
+            ];
+            $projectRole = admin_allowed_role(trim((string) ($_POST['papel'] ?? '')), $projectRoles);
             $projectUserActive = isset($_POST['ativo']) ? 1 : 0;
             $stmt->execute([
                 'project' => $project['id'],
@@ -546,14 +595,14 @@ if (($state['status'] ?? 'pendente') === 'pendente') {
     echo '<form method="post">' . csrf_field() . '<input type="hidden" name="_action" value="setup">';
     input('nome', 'Nome'); input('email', 'E-mail', 'email'); input('senha', 'Senha (mínimo 10 caracteres)', 'password'); input('confirmacao', 'Confirmar senha', 'password'); input('setup_key', 'THREEEBS_SETUP_KEY', 'password');
     echo '<button>Criar primeiro administrador</button></form>';
-    page_end(); exit;
+    admin_page_end(); exit;
 }
 
 if ($path === '/login' && !auth_user()) {
     admin_page_start('Threeebs Admin :3 — Entrar'); show_flash();
     echo '<form method="post">' . csrf_field() . '<input type="hidden" name="_action" value="login">';
     input('email', 'E-mail', 'email'); input('senha', 'Senha', 'password'); echo '<button>Entrar</button></form>';
-    page_end(); exit;
+    admin_page_end(); exit;
 }
 
 $admin = require_admin();
@@ -561,14 +610,22 @@ admin_page_start('Threeebs Admin :3');
 admin_nav(); show_flash();
 
 if ($path === '/') {
-    echo '<p>Olá, ' . h($admin['nome']) . '.</p><ul><li><a href="/usuarios">Usuários</a></li><li><a href="/clientes">Clientes</a></li><li><a href="/projetos">Projetos</a></li><li><a href="/jornadas">Jornadas</a></li><li><a href="/tarefas">Tarefas</a></li><li><a href="/servidores">Servidores</a></li></ul>';
+    echo '<section class="admin-overview"><p class="eyebrow"><span></span>Administração da plataforma</p><h1>Olá, ' . h($admin['nome']) . '.</h1><p>Gerencie pessoas, clientes, projetos e operação a partir de um único painel.</p></section>'
+        . '<div class="admin-grid">'
+        . '<a href="/usuarios"><span>Acessos</span><strong>Usuários</strong></a>'
+        . '<a href="/clientes"><span>Organizações</span><strong>Clientes</strong></a>'
+        . '<a href="/projetos"><span>Ambientes e rotas</span><strong>Projetos</strong></a>'
+        . '<a href="/jornadas"><span>Onboarding</span><strong>Jornadas</strong></a>'
+        . '<a href="/tarefas"><span>Planejamento</span><strong>Tarefas</strong></a>'
+        . '<a href="/servidores"><span>Infraestrutura</span><strong>Servidores</strong></a>'
+        . '</div>';
 } elseif ($path === '/usuarios') {
     $uuid = (string) ($_GET['uuid'] ?? '');
     if ($uuid !== '') {
         $stmt = db('identity')->prepare('SELECT uuid,nome,email,status,created_at FROM usuarios WHERE uuid=:uuid'); $stmt->execute(['uuid' => $uuid]); $item = $stmt->fetch();
         echo $item ? '<h2>' . h($item['nome']) . '</h2><dl><dt>E-mail</dt><dd>' . h($item['email']) . '</dd><dt>Status</dt><dd>' . h($item['status']) . '</dd><dt>UUID</dt><dd>' . h($item['uuid']) . '</dd></dl>' : '<p>Usuário não encontrado.</p>';
     }
-    echo '<h2>Criar usuário</h2><form method="post">' . csrf_field() . '<input type="hidden" name="_action" value="create_user"><input type="hidden" name="_return" value="/usuarios">';
+    echo '<h2>Criar usuário</h2><p class="admin-intro">Crie a identidade primeiro. Depois associe o usuário a um cliente e aos projetos que ele poderá acessar.</p><form method="post">' . csrf_field() . '<input type="hidden" name="_action" value="create_user"><input type="hidden" name="_return" value="/usuarios">';
     input('nome','Nome'); input('email','E-mail','email'); input('senha','Senha temporária (mínimo 10 caracteres)','password'); echo '<button>Criar</button></form><h2>Usuários</h2><ul>';
     foreach (db('identity')->query('SELECT uuid,nome,email,status FROM usuarios ORDER BY nome,email') as $user) echo '<li><a href="/usuarios?uuid=' . h($user['uuid']) . '">' . h($user['nome'] ?: $user['email']) . '</a> — ' . h($user['status']) . '</li>';
     echo '</ul>';
@@ -700,7 +757,9 @@ if ($path === '/') {
             $users=db('identity')->query('SELECT uuid,nome,email FROM usuarios ORDER BY nome,email')->fetchAll();
             echo '<h3>Associar usuário</h3><form method="post">'.csrf_field().'<input type="hidden" name="_action" value="link_client_user"><input type="hidden" name="cliente_uuid" value="'.h($uuid).'"><input type="hidden" name="_return" value="/clientes?uuid='.h($uuid).'"><select name="usuario_uuid">';
             foreach($users as $u) echo '<option value="'.h($u['uuid']).'">'.h($u['nome'].' — '.$u['email']).'</option>';
-            echo '</select> <input name="papel" value="membro" required> <label><input type="checkbox" name="ativo" checked> ativo</label> <button>Salvar vínculo</button></form><ul>';
+            echo '</select>';
+            admin_role_select('papel', ['proprietario' => 'Proprietário', 'gestor' => 'Gestor', 'membro' => 'Membro']);
+            echo '<p class="role-help">O papel descreve a atuação da pessoa dentro do cliente.</p><label><input type="checkbox" name="ativo" checked> vínculo ativo</label> <button>Salvar vínculo</button></form><ul>';
             $stmt=db('control')->prepare('SELECT cu.usuario_uuid,cu.papel,cu.ativo FROM cliente_usuarios cu WHERE cu.cliente_id=:id'); $stmt->execute(['id'=>$client['id']]);
             foreach($stmt as $link) echo '<li>'.h($link['usuario_uuid']).' — '.h($link['papel']).' — '.($link['ativo']?'ativo':'inativo').'</li>'; echo '</ul>';
             echo '<h3>Novo projeto</h3><form method="post">'.csrf_field().'<input type="hidden" name="_action" value="create_project"><input type="hidden" name="cliente_uuid" value="'.h($uuid).'"><input type="hidden" name="_return" value="/clientes?uuid='.h($uuid).'">';
@@ -708,7 +767,7 @@ if ($path === '/') {
             $stmt=db('control')->prepare('SELECT uuid,nome,status FROM projetos WHERE cliente_id=:id ORDER BY nome'); $stmt->execute(['id'=>$client['id']]); foreach($stmt as $p) echo '<li><a href="/projetos?uuid='.h($p['uuid']).'">'.h($p['nome']).'</a> — '.h($p['status']).'</li>'; echo '</ul>';
         }
     }
-    echo '<h2>Criar cliente</h2><form method="post">'.csrf_field().'<input type="hidden" name="_action" value="create_client"><input type="hidden" name="_return" value="/clientes">'; input('nome','Nome'); input('slug','Slug'); input('status','Status','text','ativo'); echo '<button>Criar</button></form><h2>Clientes</h2><ul>';
+    echo '<h2>Criar cliente</h2><p class="admin-intro">O cliente agrupa colaboradores e projetos. Use um slug curto, estável e sem espaços.</p><form method="post">'.csrf_field().'<input type="hidden" name="_action" value="create_client"><input type="hidden" name="_return" value="/clientes">'; input('nome','Nome'); input('slug','Slug'); input('status','Status','text','ativo'); echo '<button>Criar</button></form><h2>Clientes</h2><ul>';
     foreach(db('control')->query('SELECT uuid,nome,status FROM clientes ORDER BY nome') as $c) echo '<li><a href="/clientes?uuid='.h($c['uuid']).'">'.h($c['nome']).'</a> — '.h($c['status']).'</li>'; echo '</ul>';
 } elseif ($path === '/projetos') {
     $uuid=(string)($_GET['uuid']??'');
@@ -723,7 +782,16 @@ if ($path === '/') {
              ORDER BY u.nome,u.email"
         );
         $users->execute(['client' => $project['cliente_id']]);
-        echo '<h3>Usuários do projeto</h3><form method="post">'.csrf_field().'<input type="hidden" name="_action" value="link_project_user"><input type="hidden" name="projeto_uuid" value="'.h($uuid).'"><input type="hidden" name="_return" value="/projetos?uuid='.h($uuid).'"><select name="usuario_uuid">'; foreach($users as $u) echo '<option value="'.h($u['uuid']).'">'.h($u['nome'].' — '.$u['email']).'</option>'; echo '</select> <input name="papel" value="membro" required> <label><input type="checkbox" name="ativo" checked> ativo</label> <button>Salvar vínculo</button></form>';
+        echo '<h3>Usuários do projeto</h3><form method="post">'.csrf_field().'<input type="hidden" name="_action" value="link_project_user"><input type="hidden" name="projeto_uuid" value="'.h($uuid).'"><input type="hidden" name="_return" value="/projetos?uuid='.h($uuid).'"><select name="usuario_uuid">'; foreach($users as $u) echo '<option value="'.h($u['uuid']).'">'.h($u['nome'].' — '.$u['email']).'</option>';
+        echo '</select>';
+        admin_role_select('papel', [
+            'gestor' => 'Gestor',
+            'desenvolvedor' => 'Desenvolvedor',
+            'colaborador' => 'Colaborador',
+            'membro' => 'Membro',
+            'visualizador' => 'Visualizador',
+        ]);
+        echo '<p class="role-help">O usuário precisa ser membro ativo do cliente antes de receber acesso ao projeto.</p><label><input type="checkbox" name="ativo" checked> vínculo ativo</label> <button>Salvar vínculo</button></form>';
         $stmt=db('control')->prepare('SELECT usuario_uuid,papel,ativo FROM projeto_usuarios WHERE projeto_id=:id');$stmt->execute(['id'=>$project['id']]);echo '<ul>';foreach($stmt as $link)echo '<li>'.h($link['usuario_uuid']).' — '.h($link['papel']).' — '.($link['ativo']?'ativo':'inativo').'</li>';echo '</ul>';
         echo '<h3>Ambientes</h3><form method="post">'.csrf_field().'<input type="hidden" name="_action" value="provision_environments"><input type="hidden" name="projeto_uuid" value="'.h($uuid).'"><input type="hidden" name="_return" value="/projetos?uuid='.h($uuid).'"><button>Criar ambientes padrão</button></form>';
         $stmt=db('control')->prepare('SELECT a.*,s.nome servidor FROM ambientes a JOIN servidores s ON s.id=a.servidor_id WHERE a.projeto_id=:id ORDER BY a.tipo');$stmt->execute(['id'=>$project['id']]);$environments=$stmt->fetchAll();echo '<ul>';foreach($environments as $e)echo '<li>'.h($e['nome']).' — '.h($e['diretorio']).' — '.h($e['status']).'</li>';echo '</ul>';
@@ -795,5 +863,5 @@ if ($path === '/') {
 elseif($path==='/servidores'){echo '<h2>Servidores</h2><table><tr><th>Nome</th><th>Driver</th><th>Hostname</th><th>Status</th></tr>';foreach(db('control')->query('SELECT nome,driver,hostname,status FROM servidores ORDER BY nome') as $s)echo '<tr><td>'.h($s['nome']).'</td><td>'.h($s['driver']).'</td><td>'.h($s['hostname']).'</td><td>'.h($s['status']).'</td></tr>';echo '</table>';}
 else{http_response_code(404);echo '<p>Página não encontrada.</p>';}
 
-echo '<hr><form method="post">'.csrf_field().'<input type="hidden" name="_action" value="logout"><button>Sair</button></form>';
-page_end();
+echo '<form class="logout-form" method="post">'.csrf_field().'<input type="hidden" name="_action" value="logout"><button class="button button--ghost">Sair</button></form>';
+admin_page_end();

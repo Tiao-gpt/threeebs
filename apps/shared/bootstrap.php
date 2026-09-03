@@ -48,7 +48,7 @@ if (PHP_SAPI !== 'cli' && !headers_sent()) {
     if ($context === 'sandbox') {
         header("Content-Security-Policy: default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:");
     } elseif (in_array($context, ['admin', 'portal'], true)) {
-        header("Content-Security-Policy: default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; object-src 'none'; script-src 'none'; style-src 'self'; img-src 'self' data:; connect-src 'none'");
+        header("Content-Security-Policy: default-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'");
     }
 }
 
