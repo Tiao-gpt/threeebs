@@ -1,0 +1,13 @@
+{
+  "repository": "threeebs/threeebs-identity",
+  "source_sha": "318fbdfccbf42640e243146fe18e0cc83487b744",
+  "synced_at": "2026-09-02",
+  "assets": [
+    "design-system/dist/threeebs.css",
+    "app/public/assets/css/shell.css",
+    "app/public/assets/css/pages.css",
+    "app/public/assets/css/responsive.css",
+    "app/public/assets/css/experiences.css"
+  ],
+  "note": "Os PNGs oficiais devem ser sincronizados pelo script quando houver um checkout local da referência."
+}

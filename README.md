@@ -264,6 +264,8 @@ Este é o repositório público oficial do **Threeebs :3**, nome técnico **3eb.
 
 O projeto está em fase **PoC / Alpha**. Esta versão é experimental, pode conter falhas e ainda pode receber mudanças incompatíveis.
 
+**Versão pública atual:** `v0.1.0`.
+
 ## Requisitos
 
 - Docker Engine;

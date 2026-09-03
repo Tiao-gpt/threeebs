@@ -125,6 +125,7 @@ GRANT SELECT ON threeebs_control.projeto_usuarios TO '${THREEEBS_PORTAL_DB_USER}
 GRANT SELECT ON threeebs_control.ambientes TO '${THREEEBS_PORTAL_DB_USER}'@'%';
 GRANT SELECT ON threeebs_control.rotas_web TO '${THREEEBS_PORTAL_DB_USER}'@'%';
 GRANT SELECT ON threeebs_control.plataforma_usuarios TO '${THREEEBS_PORTAL_DB_USER}'@'%';
+GRANT INSERT ON threeebs_control.interessados TO '${THREEEBS_PORTAL_DB_USER}'@'%';
 GRANT SELECT ON threeebs_work.quadros TO '${THREEEBS_PORTAL_DB_USER}'@'%';
 GRANT SELECT ON threeebs_work.colunas TO '${THREEEBS_PORTAL_DB_USER}'@'%';
 GRANT SELECT ON threeebs_work.tarefas TO '${THREEEBS_PORTAL_DB_USER}'@'%';
