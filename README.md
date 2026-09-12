@@ -270,9 +270,12 @@ O projeto está em fase **PoC / Alpha**. Esta versão é experimental, pode cont
 
 - Docker Engine;
 - Docker Compose v2;
-- Bash.
+- Git;
+- Bash;
+- OpenSSL;
+- Linux com `systemd` e `sudo` para o operador automático de ambientes — opcional em instalações locais.
 
-## Instalação local
+## Instalação
 
 ```bash
 git clone https://github.com/Tiao-gpt/threeebs.git
@@ -280,32 +283,49 @@ cd threeebs
 bash scripts/install.sh
 ```
 
-Na primeira execução, o instalador cria o arquivo `.env` e interrompe o processo. Edite esse arquivo, substitua todos os valores iniciados por `TROQUE_` e execute novamente:
+Na primeira execução, o instalador cria o arquivo `.env` e interrompe o processo. Edite esse arquivo, substitua todos os valores iniciados por `TROQUE_` e execute novamente.
+
+Em um servidor Linux com `systemd`:
 
 ```bash
 bash scripts/install.sh
 ```
 
-A configuração de exemplo usa somente `127.0.0.1` e URLs locais. Depois da inicialização:
+Em uma máquina local, sem instalar o operador de ambientes:
+
+```bash
+bash scripts/install.sh --skip-operator
+```
+
+O instalador sincroniza novas variáveis do `.env.example`, inicia os serviços, aplica migrations idempotentes e verifica permissões e saúde dos containers.
+
+## Atualização segura
+
+Depois de revisar as mudanças disponíveis:
+
+```bash
+git pull --ff-only origin main
+bash scripts/update.sh --check
+bash scripts/update.sh
+```
+
+O processo sincroniza novas variáveis sem apagar valores existentes, cria um backup antes da atualização, aplica migrations e confirma os serviços essenciais. Use `--skip-operator` em ambientes sem `systemd`.
+
+A configuração de exemplo usa somente `127.0.0.1` e URLs locais:
 
 - Portal: `http://localhost:6011`
 - Admin: `http://localhost:6015`
 - Sandbox: `http://localhost:6016`
 - Host/Preview: `http://localhost:6010`
 
-Para verificar os serviços:
+Para verificar ou encerrar os serviços:
 
 ```bash
 docker compose ps
-```
-
-Para encerrar:
-
-```bash
 docker compose down
 ```
 
-O phpMyAdmin é opcional e pode ser iniciado com:
+O phpMyAdmin é opcional:
 
 ```bash
 docker compose --profile tools up -d phpmyadmin
