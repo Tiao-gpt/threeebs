@@ -1,9 +1,5 @@
 <p align="center">
-  <img
-    src="docs/image/threeebs-readme-banner.png"
-    alt="Threeebs :3 — Um ambiente de desenvolvimento"
-    width="100%"
-  >
+  <img src="docs/image/threeebs-readme-banner-2.png" alt="WebFarm Server" width="100%">
 </p>
 
 # Threeebs :3
